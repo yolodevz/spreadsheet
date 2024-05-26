@@ -3,16 +3,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSave } from '@/app/mutations/save.mutation';
 import { useQuery } from '@tanstack/react-query';
-import { Cell } from '@/components/ui/cell';
 import { cn } from '@/lib/utils';
 import { Status } from './status';
+import { Cell } from '@/components/ui/cell';
+import { SuccessResponse } from '@/app/api/save/route';
 
-const initialData = [
-  ['test1', 'test2'],
-  ['test3', 'test4'],
+type SpreadsheetData = string[][];
+
+const initialData: SpreadsheetData = [
+  ['1', '2'],
+  ['3', '=A1 + A2'],
 ];
 
-const headers = ['col1', 'col2'];
+const headers = ['A', 'B'];
 
 const fetchStatus = async ({ queryKey }: { queryKey: any }) => {
   const [, { id }] = queryKey;
@@ -20,8 +23,31 @@ const fetchStatus = async ({ queryKey }: { queryKey: any }) => {
   return response.json();
 };
 
+const evaluateExpression = (
+  expression: string,
+  data: SpreadsheetData
+): string => {
+  const cellRefRegex = /([A-Z]+)(\d+)/g;
+  const evaluate = (expr: string): number | string => {
+    try {
+      return new Function('return ' + expr)();
+    } catch {
+      return 'ERROR';
+    }
+  };
+
+  const replacedExpression = expression.replace(cellRefRegex, (_, col, row) => {
+    const colIndex = col.charCodeAt(0) - 'A'.charCodeAt(0);
+    const rowIndex = parseInt(row, 10) - 1;
+    const cellValue = data[rowIndex]?.[colIndex];
+    return cellValue ? `(${cellValue})` : '0';
+  });
+
+  return evaluate(replacedExpression).toString();
+};
+
 const useSpreadsheetLogic = () => {
-  const [data, setData] = useState<string[][]>(initialData);
+  const [data, setData] = useState<SpreadsheetData>(initialData);
   const [errorRows, setErrorRows] = useState<Set<number>>(new Set());
   const [statusId, setStatusId] = useState<string | undefined>(undefined);
   const [lastEditedRow, setLastEditedRow] = useState<number | undefined>(
@@ -30,9 +56,9 @@ const useSpreadsheetLogic = () => {
   const [latestCsvData, setLatestCsvData] = useState<string>('');
   const [pendingSave, setPendingSave] = useState<boolean>(false);
   const saveMutation = useSave();
-  const [runningTask, setRunningTask] = useState('');
+  const [runningTask, setRunningTask] = useState<string>('');
 
-  const { data: statusData } = useQuery({
+  const { data: statusData } = useQuery<SuccessResponse>({
     queryKey: ['status', { id: statusId }],
     queryFn: fetchStatus,
     enabled: !!statusId,
@@ -48,7 +74,7 @@ const useSpreadsheetLogic = () => {
           setPendingSave(false);
         },
         onError: () => {
-          if (lastEditedRow != undefined) {
+          if (lastEditedRow !== undefined) {
             setErrorRows((prev) => new Set(prev).add(lastEditedRow));
           }
           setPendingSave(false);
@@ -82,7 +108,13 @@ const useSpreadsheetLogic = () => {
     setData(newData);
     setLastEditedRow(row);
 
-    const csvData = [headers, ...newData]
+    const evaluatedData = newData.map((row, rowIndex) =>
+      row.map((cell, colIndex) =>
+        cell.startsWith('=') ? evaluateExpression(cell.slice(1), newData) : cell
+      )
+    );
+
+    const csvData = [headers, ...evaluatedData]
       .map((row) => row.join(','))
       .join('\n');
     setLatestCsvData(csvData);
@@ -116,7 +148,7 @@ const Spreadsheet: React.FC = () => {
   return (
     <div className='flex flex-col items-center p-5'>
       <div className='grid gap-1'>
-        <div className='flex'>
+        <div className='grid grid-cols-2'>
           {headers.map((header, index) => (
             <div key={index} className='border p-2'>
               {header}
@@ -134,6 +166,11 @@ const Spreadsheet: React.FC = () => {
               <Cell
                 key={colIndex}
                 value={cell}
+                evaluatedValue={
+                  cell.startsWith('=')
+                    ? evaluateExpression(cell.slice(1), data)
+                    : cell
+                }
                 onChange={(value) => updateCell(rowIndex, colIndex, value)}
               />
             ))}
