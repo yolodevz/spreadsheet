@@ -130,6 +130,8 @@ const useSpreadsheetLogic = () => {
   const updateCell = (row: number, col: number, value: string) => {
     setErrorRows(new Set());
 
+    if (data[row][col] === value) return;
+
     const newData = [...data];
     newData[row][col] = value;
     setData(newData);
