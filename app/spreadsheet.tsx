@@ -7,15 +7,19 @@ import { cn } from '@/lib/utils';
 import { Status } from './status';
 import { Cell } from '@/components/ui/cell';
 import { SuccessResponse } from '@/app/api/save/route';
+import { create, all } from 'mathjs';
+
+const math = create(all, {});
 
 type SpreadsheetData = string[][];
 
 const initialData: SpreadsheetData = [
-  ['1', '2'],
-  ['3', '=A1 + A2'],
+  ['$1000', '15%', '150'],
+  ['3', '=B1 * C1', '=C1 + A2'],
+  ['=B1 + B2', '=B2', '=C1 + C2'],
 ];
 
-const headers = ['A', 'B'];
+const headers = ['A', 'B', 'C'];
 
 const fetchStatus = async ({ queryKey }: { queryKey: any }) => {
   const [, { id }] = queryKey;
@@ -28,22 +32,22 @@ const evaluateExpression = (
   data: SpreadsheetData
 ): string => {
   const cellRefRegex = /([A-Z]+)(\d+)/g;
-  const evaluate = (expr: string): number | string => {
-    try {
-      return new Function('return ' + expr)();
-    } catch {
-      return 'ERROR';
-    }
-  };
 
   const replacedExpression = expression.replace(cellRefRegex, (_, col, row) => {
     const colIndex = col.charCodeAt(0) - 'A'.charCodeAt(0);
     const rowIndex = parseInt(row, 10) - 1;
     const cellValue = data[rowIndex]?.[colIndex];
-    return cellValue ? `(${cellValue})` : '0';
+    if (cellValue && cellValue.startsWith('=')) {
+      return evaluateExpression(cellValue.slice(1), data);
+    }
+    return cellValue !== undefined ? cellValue : '0';
   });
 
-  return evaluate(replacedExpression).toString();
+  try {
+    return math.evaluate(replacedExpression).toString();
+  } catch {
+    return 'ERROR';
+  }
 };
 
 const useSpreadsheetLogic = () => {
@@ -55,8 +59,11 @@ const useSpreadsheetLogic = () => {
   );
   const [latestCsvData, setLatestCsvData] = useState<string>('');
   const [pendingSave, setPendingSave] = useState<boolean>(false);
-  const saveMutation = useSave();
   const [runningTask, setRunningTask] = useState<string>('');
+
+  const [allowedSave, setAllowedSave] = useState<boolean>(false);
+
+  const saveMutation = useSave();
 
   const { data: statusData } = useQuery<SuccessResponse>({
     queryKey: ['status', { id: statusId }],
@@ -84,6 +91,8 @@ const useSpreadsheetLogic = () => {
   }, [latestCsvData, lastEditedRow, saveMutation]);
 
   useEffect(() => {
+    if (!allowedSave) return;
+
     if (
       saveMutation.status !== 'pending' &&
       statusData?.status !== 'IN_PROGRESS' &&
@@ -93,6 +102,7 @@ const useSpreadsheetLogic = () => {
       setRunningTask(latestCsvData);
     }
   }, [
+    allowedSave,
     saveMutation.status,
     statusData?.status,
     pendingSave,
@@ -130,6 +140,7 @@ const useSpreadsheetLogic = () => {
     latestCsvData,
     runningTask,
     pendingSave,
+    allowedSave,
   };
 };
 
@@ -143,14 +154,15 @@ const Spreadsheet: React.FC = () => {
     latestCsvData,
     runningTask,
     pendingSave,
+    allowedSave,
   } = useSpreadsheetLogic();
 
   return (
     <div className='flex flex-col items-center p-5'>
       <div className='grid gap-1'>
-        <div className='grid grid-cols-2'>
+        <div className='flex'>
           {headers.map((header, index) => (
-            <div key={index} className='border p-2'>
+            <div key={index} className='w-full border p-2'>
               {header}
             </div>
           ))}
@@ -194,6 +206,7 @@ const Spreadsheet: React.FC = () => {
         </>
       )}
       <div>most recently saved: {latestCsvData}</div>
+      <p>allowed save: {`${allowedSave}`}</p>
     </div>
   );
 };
