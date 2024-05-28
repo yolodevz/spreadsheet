@@ -1,16 +1,19 @@
 import React from 'react';
-import { SuccessResponse } from '@/app/api/save/route';
+import { cn } from '@/lib/utils';
+import { SuccessResponse } from '@/app/api/types/api.types';
 
 interface StatusDisplayProps {
   statusData?: SuccessResponse;
   saveStatus: string;
+  className?: string;
 }
 
-const Status: React.FC<StatusDisplayProps> = ({ statusData, saveStatus }) => {
+const Status = ({ statusData, saveStatus, className }: StatusDisplayProps) => {
   return (
-    <div>
-      <div>Status ID: {statusData?.id}</div>
-      <pre>{JSON.stringify(statusData, null, 2)}</pre>
+    <div className={cn('flex w-full flex-col space-y-2', className)}>
+      <pre>
+        <code>{JSON.stringify(statusData, null, 2)}</code>
+      </pre>
       <div>Mutation Status: {saveStatus}</div>
       <div>Mutation ID: {statusData?.id}</div>
     </div>

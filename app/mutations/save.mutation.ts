@@ -5,7 +5,8 @@ import {
 } from '@tanstack/react-query';
 import FormDataAddon from 'wretch/addons/formData';
 import wretch from 'wretch';
-import { SuccessResponse } from '@/app/api/save/route';
+import { fetchStatus } from '@/app/queries/get-status.query';
+import { SuccessResponse } from '@/app/api/types/api.types';
 
 type UploadPayload = {
   payload: {
@@ -43,10 +44,9 @@ export function useSave(): Save {
 
   const pollStatus = async (id: string) => {
     const checkStatus = async () => {
-      const statusResponse = await wretch()
-        .url(`api/get-status/${id}`)
-        .get()
-        .json<SuccessResponse>();
+      const statusResponse = await fetchStatus({
+        queryKey: ['status', { id: id }],
+      });
 
       queryClient.setQueryData(['status', { id: id }], statusResponse);
 

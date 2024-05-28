@@ -1,12 +1,11 @@
 import '@/app/globals.css';
-import { Inter as FontSans } from 'next/font/google';
+import { Montserrat } from 'next/font/google';
 import Providers from './providers';
 
 import { cn } from '@/lib/utils';
 
-const fontSans = FontSans({
+const montserrat = Montserrat({
   subsets: ['latin'],
-  variable: '--font-sans',
 });
 
 type RootLayoutProps = {
@@ -19,8 +18,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <head />
       <body
         className={cn(
-          'flex min-h-screen flex-col bg-background font-sans antialiased',
-          fontSans.variable
+          'flex min-h-screen flex-col bg-background',
+          montserrat.className
         )}
       >
         <Providers>{children}</Providers>
