@@ -1,11 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSave } from '@/app/mutations/save.mutation';
-import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Status } from './status';
-import { Button } from '@/components/ui/button';
 import { Cell } from '@/components/ui/cell';
 import { LoaderCircle } from 'lucide-react';
 import { create, all } from 'mathjs';
@@ -13,9 +9,6 @@ import { cva } from 'class-variance-authority';
 import { SpreadsheetVariant } from '@/app/types/spreadsheet.types';
 import { useSpreadsheet } from '@/app/hooks/use-spreadsheet.hook';
 import { evaluateExpression } from '@/app/lib/evaluate-expression';
-import { SuccessResponse } from '@/app/api/types/api.types';
-
-const math = create(all, {});
 
 type SpreadsheetData = {
   headers: string[];
@@ -171,14 +164,6 @@ const Spreadsheet = ({
         ))}
       </div>
       <div className='flex w-full items-start justify-between gap-x-4'>
-        <Button asChild variant='secondary'>
-          <a
-            href={`data:text/csv;charset=utf-8,${encodeURIComponent(latestCsvData)}`}
-            download='data.csv'
-          >
-            Download CSV
-          </a>
-        </Button>
         {saveMutation.status === 'pending' ||
         statusData?.status === 'IN_PROGRESS' ? (
           <div className='flex items-center justify-end gap-x-2 text-muted-foreground'>
